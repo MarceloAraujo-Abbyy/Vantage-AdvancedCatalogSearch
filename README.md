@@ -207,6 +207,7 @@ GET /api/FuzzySearch
 {
   "text": "global tech solutons",
   "limit": 2,
+  "threshold": 0.80,
   "file_name": "vendors_catalog.json"
 }
 ```
@@ -219,6 +220,7 @@ GET /api/FuzzySearch
 | --------- | ------ | -------- | -------------------------------------- |
 | text      | string | ✅        | OCR extracted text                     |
 | limit     | number | ❌        | Max number of candidates (default: 10) |
+| threshold | number | ❌        | Minimum valid score (default: 0)       |
 | file_name | string | ✅        | Catalog file stored in Blob            |
 
 ---
@@ -291,6 +293,7 @@ GET /api/AdvSearchCatalog
 
   "file_name": "Accounts.json",
   "limit":1,
+  "threshold": 0.8,
   "fields": {
     "Account Name": { "value": " Atrium Health Navicent ", "weight": 1 }
   }
@@ -309,7 +312,7 @@ GET /api/AdvSearchCatalog
 | fields       | array  | ✅       | OCR extracted text plus weight for each field                    |
 | file_name    | string | ✅       | Catalog file stored in Blob                                      |
 | limit        | intger | ❌       | default = 1                                                      |
-
+| threshold    | number | ❌        | Minimum valid score (default: 0)                                |
 ---
 
 ## Response Example
