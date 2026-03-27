@@ -80,7 +80,7 @@ def normalize(text, stopwords=None):
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
-def find_candidatesCatalog(options, query, limit=10):
+def find_candidatesCatalog(options, query, limit=10, threshold=0):
     norm_query = normalize(query)
     
     # Extrair apenas as strings normalizadas para o match
@@ -95,6 +95,8 @@ def find_candidatesCatalog(options, query, limit=10):
     
     mapped = []
     for matched_str, score, index in results:  # ← 'index' agora é o índice real
+        if score < threshold:
+            continue
         item = options[index]                  # ← recupera o dict original
         mapped.append({
             "name": item.get("original"),
@@ -105,7 +107,7 @@ def find_candidatesCatalog(options, query, limit=10):
     
     return mapped
 
-def find_candidates(options, choices, query, limit=10):
+def find_candidates(options, choices, query, limit=10, threshold=0  ):
     norm_query = normalize(query)
 
     results = process.extract(
@@ -121,11 +123,12 @@ def find_candidates(options, choices, query, limit=10):
             "score": round(r[1], 2)
         }
         for r in results
+        if r[1] >= threshold 
     ]
 
     return mapped
 
-def find_candidatesCatalog_multi(options, query_fields: dict, limit=10):
+def find_candidatesCatalog_multi(options, query_fields: dict, limit=10, threshold=0):
     active_fields = {
         col: meta
         for col, meta in query_fields.items()
@@ -178,10 +181,11 @@ def find_candidatesCatalog_multi(options, query_fields: dict, limit=10):
             if not candidate_value:
                 continue
 
-            field_score      = smart_score(norm_query_value, candidate_value)
-            composite_score += field_score * weight
+            composite_score += smart_score(norm_query_value, candidate_value) * weight
 
-        scored.append((idx, round(composite_score, 2)))
+
+        if composite_score >= threshold:        # ← filtra abaixo do threshold
+            scored.append((idx, round(composite_score, 2)))
 
     scored.sort(key=lambda x: x[1], reverse=True)
     scored = scored[:limit]
@@ -418,6 +422,7 @@ def FuzzySearch(req: func.HttpRequest) -> func.HttpResponse:
         ocr_text = body.get("text")
         limit = body.get("limit", 10)
         file_name = body.get("file_name")
+        threshold = body.get("threshold", 0)*100
 
         options = load_catalog_from_blob(file_name)
         choices = [h["normalized"] for h in options]
@@ -440,7 +445,7 @@ def FuzzySearch(req: func.HttpRequest) -> func.HttpResponse:
         except:
             limit = 10
 
-        candidates = find_candidates(options, choices, ocr_text, limit)
+        candidates = find_candidates(options, choices, ocr_text, limit, threshold)
 
         response = {
             "input": ocr_text,
@@ -470,6 +475,7 @@ def AdvCatalogSearch(req: func.HttpRequest) -> func.HttpResponse:
         body = req.get_json()
         file_name   = body.get("file_name")
         limit       = body.get("limit", 1)
+        threshold   = body.get("threshold", 0)*100
         query_fields = body.get("fields")  # 
 
         # validations
@@ -513,7 +519,7 @@ def AdvCatalogSearch(req: func.HttpRequest) -> func.HttpResponse:
             )
 
         # find candidates
-        candidates = find_candidatesCatalog_multi(options, query_fields, limit=limit)
+        candidates = find_candidatesCatalog_multi(options, query_fields, limit=limit, threshold=threshold)
 
         records = [
             {
